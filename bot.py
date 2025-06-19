@@ -30,8 +30,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 MONGODB_URL = os.getenv("MONGODB_URL")
 OWNER_ID = int(os.getenv("OWNER_ID"))
 REQUIRED_CHANNELS = [
-    {"id": "", "name": ""},
-    {"id": "", "name": ""}
+    {"id": "@FreeNetflixDaily0", "name": "Free Prime Videos Daily"},
+    {"id": "@FreeNetflixDailyChat", "name": "Free Prime Videos Daily Chat"}
 ]
 
 pending_referrals = {}  # user_id -> referred_by
