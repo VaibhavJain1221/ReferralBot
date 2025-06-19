@@ -11,6 +11,8 @@ import string
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 import html
+from flask import Flask
+import threading, os
 
 # Configure logging
 logging.basicConfig(
@@ -37,6 +39,14 @@ pending_referrals = {}  # user_id -> referred_by
 # MongoDB configuration
  # Change to MongoDB Atlas URL when ready
 DATABASE_NAME = os.getenv("DATABASE_NAME")
+app = Flask("")
+
+@app.route("/")
+def home():
+    return "🤖 Bot is running!"
+
+def keep_alive():
+    app.run(host="0.0.0.0", port=8080)
 
 # Global variables to store context for message handling
 current_waiting_for_code = set()
@@ -1209,7 +1219,8 @@ async def add_claim_files_handler(update: Update, context: ContextTypes.DEFAULT_
 def main():
     # Initialize database
     init_db()
-    
+    app_thread = threading.Thread(target=keep_alive)
+    app_thread.start()
     # Create application
     application = Application.builder().token(BOT_TOKEN).build()
     
