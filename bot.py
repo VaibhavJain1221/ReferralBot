@@ -1216,12 +1216,14 @@ async def add_withdraw_files_handler(update: Update, context: ContextTypes.DEFAU
 
 async def add_claim_files_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await add_files(update, context, "claim_files")
-
+    
+def run_flask():
+    app.run(host="0.0.0.0", port=8080)
+    
 def main():
     # Initialize database
     init_db()
-    app_thread = threading.Thread(target=keep_alive)
-    app_thread.start()
+    threading.Thread(target=run_flask).start()
     # Create application
     application = Application.builder().token(BOT_TOKEN).build()
     
@@ -1245,10 +1247,7 @@ def main():
     
     # Run the bot
     application.run_polling()
-def run_flask():
-    app.run(host="0.0.0.0", port=8080)
+
 
 if __name__ == '__main__':
-    # Run Flask in a background thread
-    threading.Thread(target=run_flask).start()
     main()
