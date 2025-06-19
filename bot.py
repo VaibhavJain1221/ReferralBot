@@ -39,14 +39,15 @@ pending_referrals = {}  # user_id -> referred_by
 # MongoDB configuration
  # Change to MongoDB Atlas URL when ready
 DATABASE_NAME = os.getenv("DATABASE_NAME")
-app = Flask("")
+from flask import Flask
+import threading
+
+app = Flask(__name__)
 
 @app.route("/")
 def home():
-    return "🤖 Bot is running!"
+    return "Bot is running ✅"
 
-def keep_alive():
-    app.run(host="0.0.0.0", port=8080)
 
 # Global variables to store context for message handling
 current_waiting_for_code = set()
@@ -1244,6 +1245,10 @@ def main():
     
     # Run the bot
     application.run_polling()
+def run_flask():
+    app.run(host="0.0.0.0", port=8080)
 
 if __name__ == '__main__':
+    # Run Flask in a background thread
+    threading.Thread(target=run_flask).start()
     main()
