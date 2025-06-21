@@ -1233,7 +1233,7 @@ def main():
     init_db()
     threading.Thread(target=run_flask).start()
 
-    asyncio.run(clear_webhook()
+    asyncio.run(clear_webhook())
     # Create application
     application = Application.builder().token(BOT_TOKEN).build()
     
