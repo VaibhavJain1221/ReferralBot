@@ -22,7 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Bot configuration
-import os
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -39,8 +39,7 @@ pending_referrals = {}  # user_id -> referred_by
 # MongoDB configuration
  # Change to MongoDB Atlas URL when ready
 DATABASE_NAME = os.getenv("DATABASE_NAME")
-from flask import Flask
-import threading
+
 
 app = Flask(__name__)
 
@@ -1220,10 +1219,21 @@ async def add_claim_files_handler(update: Update, context: ContextTypes.DEFAULT_
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
     
+async def clear_webhook():
+    try:
+        bot = Bot(BOT_TOKEN)
+        await bot.delete_webhook(drop_pending_updates=True)
+        print("✅ Webhook cleared")
+    except Exception as e:
+        print(f"❌ Webhook clear failed: {e}")
+
+# Telegram handlers (minimal example)  
 def main():
     # Initialize database
     init_db()
     threading.Thread(target=run_flask).start()
+
+    asyncio.run(clear_webhook()
     # Create application
     application = Application.builder().token(BOT_TOKEN).build()
     
