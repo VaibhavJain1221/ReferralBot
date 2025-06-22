@@ -65,62 +65,69 @@ def get_db():
 # Database initialization
 def init_db():
     db = get_db()
+    
+    # TTL index: 15 days for withdraw and claim logs
     db.withdraw_logs.create_index("timestamp", expireAfterSeconds=1296000)
-
-    # TTL for claim logs — delete after 15 days
     db.claim_logs.create_index("timestamp", expireAfterSeconds=1296000)
 
-    # TTL for code claim history (optional)
+    # TTL index: 30 days for code claims (optional)
     db.code_claims.create_index("claimed_at", expireAfterSeconds=2592000)
-    # Create collections and indexes
+
+    # Main collections
     users_collection = db.users
     claim_codes_collection = db.claim_codes
     code_claims_collection = db.code_claims
     bot_settings_collection = db.bot_settings
     files_collection = db.files
-    
-    # Create indexes for better performance
+
+    # Indexes
     try:
         users_collection.create_index("user_id", unique=True)
     except:
-        pass  # Index might already exist
-    
+        pass
+
     try:
         claim_codes_collection.create_index("code", unique=True)
     except:
         pass
-    
+
+    # ✅ ✅ FIXED: Use code_id instead of code to avoid reuse conflict
     try:
-        code_claims_collection.create_index([("user_id", 1), ("code", 1)], unique=True)
+        code_claims_collection.drop_index([("user_id", 1), ("code", 1)])  # Drop incorrect index if exists
+    except:
+        pass  # Safe if index doesn't exist
+
+    try:
+        code_claims_collection.create_index([("user_id", 1), ("code_id", 1)], unique=True)  # ✅ Correct index
     except:
         pass
-    
+
     try:
         bot_settings_collection.create_index("key", unique=True)
     except:
         pass
-    
+
     try:
         files_collection.create_index("file_id")
     except:
         pass
-    
-    # Initialize default settings only if they don't exist
+
+    # Set default bot settings
     default_settings = [
         {"key": "withdraw_files", "value": 0},
         {"key": "claim_files", "value": 0}
     ]
-    
+
     for setting in default_settings:
-        existing_setting = bot_settings_collection.find_one({"key": setting["key"]})
-        if not existing_setting:
+        if not bot_settings_collection.find_one({"key": setting["key"]}):
             try:
                 bot_settings_collection.insert_one(setting)
                 logger.info(f"Initialized setting: {setting['key']} = {setting['value']}")
             except DuplicateKeyError:
-                pass  # Setting was created by another process
-    
+                pass
+
     logger.info("Database initialized successfully")
+
 
 def store_file_info(file_id, file_type, file_name, user_id):
     """Store file information in database"""
