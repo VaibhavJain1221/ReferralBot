@@ -220,50 +220,62 @@ def get_claim_code(code):
     db = get_db()
     return db.claim_codes.find_one({"code": code, "is_active": True})
 
+from bson.objectid import ObjectId
+from pymongo.errors import DuplicateKeyError
+from datetime import datetime
+
 def use_claim_code(user_id, code):
     db = get_db()
 
-    # Check if user already claimed this code
-    existing_claim = db.code_claims.find_one({"user_id": user_id, "code": code})
-    if existing_claim:
-        return False, "already_claimed"
-
-    # Get claim code info
-    claim_code = get_claim_code(code)
+    # Get active claim code info
+    claim_code = db.claim_codes.find_one({
+        "code": code,
+        "is_active": True
+    })
     if not claim_code:
         return False, "invalid_code"
 
+    # Check if user already claimed this exact code (by ID)
+    existing_claim = db.code_claims.find_one({
+        "user_id": user_id,
+        "code_id": claim_code["_id"]
+    })
+    if existing_claim:
+        return False, "already_claimed"
+
     if claim_code["files_left"] <= 0:
-        # ❌ Code is already empty — delete it
+        # ❌ Code exhausted — delete it
         db.claim_codes.delete_one({"_id": claim_code["_id"]})
         return False, "no_files"
 
-    # Record the claim
+    # Record the claim with code_id
     try:
         db.code_claims.insert_one({
             "user_id": user_id,
+            "code_id": claim_code["_id"],
             "code": code,
             "claimed_at": datetime.now()
         })
     except DuplicateKeyError:
         return False, "already_claimed"
 
-    # Decrease files_left for this code
+    # Decrease files_left
     db.claim_codes.update_one(
-        {"code": code},
+        {"_id": claim_code["_id"]},
         {"$inc": {"files_left": -1}}
     )
 
-    # Update global bot setting
+    # Update global stats
     settings = get_bot_settings()
     update_bot_setting('claim_files', max(0, settings.get('claim_files', 0) - 1))
 
-    # ✅ Now delete the code if no files left
-    updated_code = get_claim_code(code)
+    # If code is now empty, delete it
+    updated_code = db.claim_codes.find_one({"_id": claim_code["_id"]})
     if updated_code and updated_code["files_left"] <= 0:
         db.claim_codes.delete_one({"_id": updated_code["_id"]})
 
     return True, updated_code["files_left"] if updated_code else 0
+
 
 def get_random_claim_file():
     """Get a random file for claim code redemption"""
