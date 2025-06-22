@@ -1,4 +1,5 @@
 import logging
+import telegram.error
 from telegram import ReplyKeyboardMarkup, KeyboardButton
 import random
 import telegram
@@ -366,70 +367,57 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     args = context.args
 
-    # Ignore group or channel messages
     if update.message.chat.type != "private":
         return
 
-    # ✅ Always define this first
     referred_by = None
     if args and args[0].startswith('ref_'):
         try:
             referred_by = int(args[0][4:])
         except ValueError:
-            pass
+            referred_by = None
 
-    # ✅ Check if user has joined required channels
+    # If user hasn't joined required channels, prompt and save referral
     if not await check_channel_membership(context.bot, user.id):
-        # Save referral info temporarily
         if referred_by:
-            pending_referrals[user.id] = referred_by
+            pending_referrals[user.id] = referred_by  # ✅ Save referral temporarily
 
         keyboard = []
         for channel in REQUIRED_CHANNELS:
             keyboard.append([InlineKeyboardButton(f"Join {channel['name']}", url=f"https://t.me/{channel['id'][1:]}")])
         keyboard.append([InlineKeyboardButton("✅ I Joined", callback_data="check_membership")])
 
-        reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
-            "🎉 Welcome to our bot!\n\n"
-            "To continue, please join our channels:",
-            reply_markup=reply_markup
+            "❌ You must join our channels to continue using the bot:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
 
-    # ✅ Check if user already exists
+    # Check if user already exists
     existing_user = get_user(user.id)
     if existing_user:
-        if referred_by and existing_user.get("is_referred"):
-            await update.message.reply_text("❌ You have already been referred!")
-            try:
-                await context.bot.send_message(referred_by, "❌ This user was already referred!")
-            except:
-                pass
         await show_main_menu(update, context)
         return
 
-    # ✅ Add user to DB
-    is_new_user = add_user(user.id, user.username, user.first_name, referred_by)
+    # New user, apply referral (if exists)
+    add_user(user.id, user.username, user.first_name, referred_by)
 
-    # ✅ Apply referral rewards
-    if is_new_user and referred_by:
-        referrer = get_user(referred_by)
-        if referrer and user.id != referred_by:
-            update_user_points(referred_by, 8)
-            update_user_points(user.id, 4)
+    if referred_by and referred_by != user.id:
+        update_user_points(referred_by, 8)
+        update_user_points(user.id, 4)
 
-            await update.message.reply_text("🎉 You've earned 4 points for joining through a referral link!")
+        await update.message.reply_text("🎉 You've earned 4 points for joining through a referral link!")
 
-            try:
-                await context.bot.send_message(
-                    referred_by,
-                    f"🎉 You earned 8 points! {user.first_name} joined using your referral link!"
-                )
-            except:
-                pass
+        try:
+            await context.bot.send_message(
+                referred_by,
+                f"🎉 You earned 8 points! {user.first_name} joined using your referral link!"
+            )
+        except:
+            pass
 
     await show_main_menu(update, context)
+
 
 
 
@@ -978,11 +966,11 @@ async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
 async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+
     try:
         await query.answer()
     except telegram.error.BadRequest:
-        pass  # Ignore "query is too old" error
-
+        pass  # Handles "query too old" errors
 
     user_id = query.from_user.id
 
@@ -990,10 +978,10 @@ async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("✅ Thank you for joining our channels!", parse_mode='Markdown')
 
         referred_by = pending_referrals.pop(user_id, None)
+        logger.info(f"[Referral Check] User: {user_id}, referred_by: {referred_by}")
 
         existing_user = get_user(user_id)
         if not existing_user:
-            # Add new user and apply referral
             add_user(user_id, query.from_user.username, query.from_user.first_name, referred_by)
 
             if referred_by and referred_by != user_id:
@@ -1019,6 +1007,7 @@ async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     else:
         await query.answer("❌ Please join all required channels first!", show_alert=True)
+
 
 
 async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
