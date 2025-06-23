@@ -31,8 +31,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 MONGODB_URL = os.getenv("MONGODB_URL")
 OWNER_ID = int(os.getenv("OWNER_ID"))
 REQUIRED_CHANNELS = [
-    {"id": "@FreeNetflixDaily0", "name": "Free Netflix Daily"},
-    {"id": "@FreeNetflixDailyChat", "name": "Free Netflix Daily Chat"}
+    {"id": "@FreeNetflixDaily0", "name": "Free Netflix Daily!"},
+    {"id": "@FreeNetflixDailyChat", "name": "Free Netflix Daily Chat!"}
 ]
 
 pending_referrals = {}  # user_id -> referred_by
@@ -344,15 +344,25 @@ def delete_withdraw_file(file_id):
 
 # Check if user is member of required channels
 async def check_channel_membership(bot: Bot, user_id: int) -> bool:
+    # ✅ Skip check for owner/admin (optional, safe)
+    if user_id == OWNER_ID:
+        return True
+
     try:
         for channel in REQUIRED_CHANNELS:
-            member = await bot.get_chat_member(channel["id"], user_id)
-            if member.status in ['left', 'kicked']:
-                return False
+            try:
+                member = await bot.get_chat_member(channel["id"], user_id)
+                if member.status not in ("member", "administrator", "creator"):
+                    logger.warning(f"User {user_id} is not a member of {channel['id']} (status: {member.status})")
+                    return False
+            except Exception as e:
+                logger.error(f"Error checking {channel['id']} for user {user_id}: {e}")
+                return False  # Fail-safe: treat as not joined
         return True
     except Exception as e:
-        logger.error(f"Error checking membership: {e}")
+        logger.error(f"General error checking membership for user {user_id}: {e}")
         return False
+
 
 # Generate claim code
 def generate_claim_code():
