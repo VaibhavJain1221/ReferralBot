@@ -61,6 +61,7 @@ pending_code_data = {}  # Store temporary data for code generation
 
 # Webhook route
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
+bot = Bot(token=BOT_TOKEN)
 def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
     asyncio.run(application.process_update(update))
