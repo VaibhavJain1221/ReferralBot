@@ -57,6 +57,14 @@ current_waiting_for_claim_files = set()
 current_waiting_for_code_users = set()
 pending_code_data = {}  # Store temporary data for code generation
 
+
+# Webhook route
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), bot)
+    asyncio.run(application.process_update(update))
+    return "OK"
+
 # MongoDB connection
 def get_db():
     client = MongoClient(MONGODB_URL)
@@ -1234,13 +1242,8 @@ async def add_withdraw_files_handler(update: Update, context: ContextTypes.DEFAU
 async def add_claim_files_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await add_files(update, context, "claim_files")
     
-def run_flask():
-    app.run(host="0.0.0.0", port=8080)
-
-async def run_bot_async():
-    application = Application.builder().token(BOT_TOKEN).build()
-
-    # Register all handlers
+def main():
+    # Add all your handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(my_profile, pattern="my_profile"))
     application.add_handler(CallbackQueryHandler(withdraw_points, pattern="withdraw_points"))
@@ -1253,20 +1256,18 @@ async def run_bot_async():
     application.add_handler(CallbackQueryHandler(check_membership, pattern="check_membership"))
     application.add_handler(CallbackQueryHandler(back_to_menu, pattern="back_to_menu"))
     application.add_handler(MessageHandler(filters.Regex(r"^(👤 My Profile|⚡ Withdraw Points|🎁 Claim Code|📊 Stats|🔐 Generate Code \(Owner\)|📁 Add Files \(Owner\))$"), handle_keyboard_buttons))
-    application.add_handler(MessageHandler((filters.TEXT & ~filters.COMMAND) | filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO, handle_message))
+    application.add_handler(MessageHandler(
+        (filters.TEXT & ~filters.COMMAND) | filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO,
+        handle_message
+    ))
 
-    await application.run_polling()
+    # Set the webhook to Render domain
+    webhook_url = f"https://{RENDER_EXTERNAL_HOSTNAME}/{BOT_TOKEN}"
+    asyncio.run(bot.set_webhook(url=webhook_url))
 
-# Telegram handlers (minimal example)  
-def main():
-    init_db()
-    # Run the bot in a thread using asyncio
-    threading.Thread(target=lambda: asyncio.run(run_bot_async())).start()
-
-    # Keep Flask running for Render ping (port 8080)
+    # Start Flask app on port 8080
     app.run(host="0.0.0.0", port=8080)
 
-
-
-if __name__ == '__main__':
+# Entry point
+if __name__ == "__main__":
     main()
