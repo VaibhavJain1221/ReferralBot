@@ -28,6 +28,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 MONGODB_URL = os.getenv("MONGODB_URL")
 OWNER_ID = int(os.getenv("OWNER_ID"))
 REQUIRED_CHANNELS = [
