@@ -58,10 +58,9 @@ current_waiting_for_claim_files = set()
 current_waiting_for_code_users = set()
 pending_code_data = {}  # Store temporary data for code generation
 
-
+bot = Bot(token=BOT_TOKEN)
 # Webhook route
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
-bot = Bot(token=BOT_TOKEN)
 def webhook():
     update = Update.de_json(request.get_json(force=True), bot)
     asyncio.run(application.process_update(update))
@@ -1267,7 +1266,7 @@ def main():
 
     # Set the webhook to Render domain
     webhook_url = f"https://{RENDER_EXTERNAL_HOSTNAME}/{BOT_TOKEN}"
-    asyncio.run(bot.set_webhook(url=webhook_url))
+    asyncio.run(application.bot.set_webhook(url=webhook_url)))
 
     # Start Flask app on port 8080
     app.run(host="0.0.0.0", port=8080)
