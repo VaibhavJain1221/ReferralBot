@@ -1237,10 +1237,10 @@ async def add_claim_files_handler(update: Update, context: ContextTypes.DEFAULT_
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
 
-def run_telegram_bot():
+async def run_bot_async():
     application = Application.builder().token(BOT_TOKEN).build()
 
-    # Handlers...
+    # Register all handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(my_profile, pattern="my_profile"))
     application.add_handler(CallbackQueryHandler(withdraw_points, pattern="withdraw_points"))
@@ -1255,13 +1255,16 @@ def run_telegram_bot():
     application.add_handler(MessageHandler(filters.Regex(r"^(👤 My Profile|⚡ Withdraw Points|🎁 Claim Code|📊 Stats|🔐 Generate Code \(Owner\)|📁 Add Files \(Owner\))$"), handle_keyboard_buttons))
     application.add_handler(MessageHandler((filters.TEXT & ~filters.COMMAND) | filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO, handle_message))
 
-    application.run_polling()  # Run polling in its own thread
-   
+    await application.run_polling()
+
 # Telegram handlers (minimal example)  
 def main():
     init_db()
-    threading.Thread(target=run_telegram_bot).start()
-    app.run(host="0.0.0.0", port=8080)  # Keeps Render happy with port 8080
+    # Run the bot in a thread using asyncio
+    threading.Thread(target=lambda: asyncio.run(run_bot_async())).start()
+
+    # Keep Flask running for Render ping (port 8080)
+    app.run(host="0.0.0.0", port=8080)
 
 
 
