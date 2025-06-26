@@ -1236,18 +1236,11 @@ async def add_claim_files_handler(update: Update, context: ContextTypes.DEFAULT_
     
 def run_flask():
     app.run(host="0.0.0.0", port=8080)
-    
-# Telegram handlers (minimal example)  
-def main():
-    # Initialize database
-    init_db()
-    threading.Thread(target=run_flask).start()
 
-    
-    # Create application
+def run_telegram_bot():
     application = Application.builder().token(BOT_TOKEN).build()
-    
-    # Add handlers
+
+    # Handlers...
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(my_profile, pattern="my_profile"))
     application.add_handler(CallbackQueryHandler(withdraw_points, pattern="withdraw_points"))
@@ -1255,18 +1248,21 @@ def main():
     application.add_handler(CallbackQueryHandler(stats, pattern="stats"))
     application.add_handler(CallbackQueryHandler(generate_code_menu, pattern="generate_code"))
     application.add_handler(CallbackQueryHandler(add_files_menu, pattern="add_files"))
-    
-    # Fixed callback handlers for file uploads
     application.add_handler(CallbackQueryHandler(add_withdraw_files_handler, pattern="add_withdraw_files"))
     application.add_handler(CallbackQueryHandler(add_claim_files_handler, pattern="add_claim_files"))
-    
     application.add_handler(CallbackQueryHandler(check_membership, pattern="check_membership"))
     application.add_handler(CallbackQueryHandler(back_to_menu, pattern="back_to_menu"))
     application.add_handler(MessageHandler(filters.Regex(r"^(👤 My Profile|⚡ Withdraw Points|🎁 Claim Code|📊 Stats|🔐 Generate Code \(Owner\)|📁 Add Files \(Owner\))$"), handle_keyboard_buttons))
     application.add_handler(MessageHandler((filters.TEXT & ~filters.COMMAND) | filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO, handle_message))
-    
-    # Run the bot
-    application.run_polling()
+
+    application.run_polling()  # Run polling in its own thread
+   
+# Telegram handlers (minimal example)  
+def main():
+    init_db()
+    threading.Thread(target=run_telegram_bot).start()
+    app.run(host="0.0.0.0", port=8080)  # Keeps Render happy with port 8080
+
 
 
 if __name__ == '__main__':
