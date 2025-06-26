@@ -1243,7 +1243,9 @@ async def add_claim_files_handler(update: Update, context: ContextTypes.DEFAULT_
     await add_files(update, context, "claim_files")
     
 def main():
-    # Add all your handlers
+    # ✅ Initialize application before using it
+    application = Application.builder().token(BOT_TOKEN).build()
+
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(my_profile, pattern="my_profile"))
     application.add_handler(CallbackQueryHandler(withdraw_points, pattern="withdraw_points"))
