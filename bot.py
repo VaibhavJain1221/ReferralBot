@@ -1266,7 +1266,7 @@ def main():
 
     # Set the webhook to Render domain
     webhook_url = f"https://{RENDER_EXTERNAL_HOSTNAME}/{BOT_TOKEN}"
-    asyncio.run(application.bot.set_webhook(url=webhook_url)))
+    asyncio.run(application.bot.set_webhook(url=webhook_url))
 
     # Start Flask app on port 8080
     app.run(host="0.0.0.0", port=8080)
