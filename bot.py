@@ -12,7 +12,7 @@ import string
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 import html
-from flask import Flask, request 
+from flask import Flask
 import threading, os
 
 # Configure logging
@@ -28,7 +28,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-RENDER_EXTERNAL_HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
 MONGODB_URL = os.getenv("MONGODB_URL")
 OWNER_ID = int(os.getenv("OWNER_ID"))
 REQUIRED_CHANNELS = [
@@ -57,14 +56,6 @@ current_waiting_for_withdraw_files = set()
 current_waiting_for_claim_files = set()
 current_waiting_for_code_users = set()
 pending_code_data = {}  # Store temporary data for code generation
-
-bot = Bot(token=BOT_TOKEN)
-# Webhook route
-@app.route(f"/{BOT_TOKEN}", methods=["POST"])
-def webhook():
-    update = Update.de_json(request.get_json(force=True), bot)
-    asyncio.run(application.process_update(update))
-    return "OK"
 
 # MongoDB connection
 def get_db():
@@ -1243,10 +1234,13 @@ async def add_withdraw_files_handler(update: Update, context: ContextTypes.DEFAU
 async def add_claim_files_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await add_files(update, context, "claim_files")
     
-def main():
-    # ✅ Initialize application before using it
+def run_flask():
+    app.run(host="0.0.0.0", port=8080)
+    
+def run_telegram_bot():
     application = Application.builder().token(BOT_TOKEN).build()
 
+    # Handlers...
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(my_profile, pattern="my_profile"))
     application.add_handler(CallbackQueryHandler(withdraw_points, pattern="withdraw_points"))
@@ -1259,18 +1253,41 @@ def main():
     application.add_handler(CallbackQueryHandler(check_membership, pattern="check_membership"))
     application.add_handler(CallbackQueryHandler(back_to_menu, pattern="back_to_menu"))
     application.add_handler(MessageHandler(filters.Regex(r"^(👤 My Profile|⚡ Withdraw Points|🎁 Claim Code|📊 Stats|🔐 Generate Code \(Owner\)|📁 Add Files \(Owner\))$"), handle_keyboard_buttons))
-    application.add_handler(MessageHandler(
-        (filters.TEXT & ~filters.COMMAND) | filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO,
-        handle_message
-    ))
+    application.add_handler(MessageHandler((filters.TEXT & ~filters.COMMAND) | filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO, handle_message))
 
-    # Set the webhook to Render domain
-    webhook_url = f"https://{RENDER_EXTERNAL_HOSTNAME}/{BOT_TOKEN}"
-    asyncio.run(application.bot.set_webhook(url=webhook_url))
+    application.run_polling()  # Run polling in its own thread
+   
+# Telegram handlers (minimal example)  
+def main():
+    # Initialize database
+    init_db()
+    threading.Thread(target=run_flask).start()
 
-    # Start Flask app on port 8080
-    app.run(host="0.0.0.0", port=8080)
+    
+    # Create application
+    application = Application.builder().token(BOT_TOKEN).build()
+    
+    # Add handlers
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(my_profile, pattern="my_profile"))
+    application.add_handler(CallbackQueryHandler(withdraw_points, pattern="withdraw_points"))
+    application.add_handler(CallbackQueryHandler(claim_code_menu, pattern="claim_code"))
+    application.add_handler(CallbackQueryHandler(stats, pattern="stats"))
+    application.add_handler(CallbackQueryHandler(generate_code_menu, pattern="generate_code"))
+    application.add_handler(CallbackQueryHandler(add_files_menu, pattern="add_files"))
+    
+    # Fixed callback handlers for file uploads
+    application.add_handler(CallbackQueryHandler(add_withdraw_files_handler, pattern="add_withdraw_files"))
+    application.add_handler(CallbackQueryHandler(add_claim_files_handler, pattern="add_claim_files"))
+    
+    application.add_handler(CallbackQueryHandler(check_membership, pattern="check_membership"))
+    application.add_handler(CallbackQueryHandler(back_to_menu, pattern="back_to_menu"))
+    application.add_handler(MessageHandler(filters.Regex(r"^(👤 My Profile|⚡ Withdraw Points|🎁 Claim Code|📊 Stats|🔐 Generate Code \(Owner\)|📁 Add Files \(Owner\))$"), handle_keyboard_buttons))
+    application.add_handler(MessageHandler((filters.TEXT & ~filters.COMMAND) | filters.Document.ALL | filters.PHOTO | filters.VIDEO | filters.AUDIO, handle_message))
+    
+    # Run the bot
+    application.run_polling()
 
-# Entry point
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()
