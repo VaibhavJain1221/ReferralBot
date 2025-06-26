@@ -12,7 +12,7 @@ import string
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 import html
-from flask import Flask
+from flask import Flask, request 
 import threading, os
 
 # Configure logging
